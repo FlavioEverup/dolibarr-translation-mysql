@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Translation Management System Prompt</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha3/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+<div class="container my-5">
+    <h1 class="text-center mb-4">Translation Management System</h1>
+
+    <div class="accordion" id="promptAccordion">
+        <!-- Step 1 -->
+        <div class="accordion-item">
+            <h2 class="accordion-header" id="headingOne">
+                <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapseOne" aria-expanded="true" aria-controls="collapseOne">
+                    Step 1: Create the Function <code>base10to36</code>
+                </button>
+            </h2>
+            <div id="collapseOne" class="accordion-collapse collapse show" aria-labelledby="headingOne" data-bs-parent="#promptAccordion">
+                <div class="accordion-body">
+                    Create the function in the MySQL database:
+                    <pre class="bg-light p-3">
+CREATE FUNCTION `base10to36`(num BIGINT) RETURNS varchar(255) CHARSET utf8mb4
+    DETERMINISTIC
+BEGIN
+    DECLARE chars CHAR(36) DEFAULT "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    DECLARE stream CHAR(32) DEFAULT "";
+    DECLARE res INT;
+    WHILE num > 0 DO
+        SET res = num % 36;
+        SET num = num DIV 36;
+        SET stream = CONCAT(MID(chars, res + 1, 1), stream);
+    END WHILE;
+    RETURN stream;
+END;
+                    </pre>
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 2 -->
+        <div class="accordion-item">
+            <h2 class="accordion-header" id="headingTwo">
+                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseTwo" aria-expanded="false" aria-controls="collapseTwo">
+                    Step 2: Recreate the Tables
+                </button>
+            </h2>
+            <div id="collapseTwo" class="accordion-collapse collapse" aria-labelledby="headingTwo" data-bs-parent="#promptAccordion">
+                <div class="accordion-body">
+                    Run the following SQL commands:
+                    <pre class="bg-light p-3">
+DROP TABLE IF EXISTS `a_languages`, `a_langs`, `a_lang_key_names`;
+
+CREATE TABLE `a_languages` (
+    `id` int unsigned NOT NULL,
+    `language` char(5) DEFAULT NULL,
+    PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE `a_langs` (
+    `id` int NOT NULL AUTO_INCREMENT,
+    `id36` char(6) DEFAULT NULL,
+    `lang_code` int NOT NULL,
+    `key_name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL,
+    `module` varchar(255) DEFAULT NULL,
+    `translation` text NOT NULL,
+    `module_id` int DEFAULT NULL,
+    `key_name_id` int DEFAULT NULL,
+    PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE `a_lang_key_names` (
+    `id` int NOT NULL AUTO_INCREMENT,
+    `key_name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL,
+    `key_36` char(3) DEFAULT NULL,
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `key_name_UNIQUE` (`key_name`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+                    </pre>
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 3 -->
+        <div class="accordion-item">
+            <h2 class="accordion-header" id="headingThree">
+                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseThree" aria-expanded="false" aria-controls="collapseThree">
+                    Step 3: Create the Language Selection Form
+                </button>
+            </h2>
+            <div id="collapseThree" class="accordion-collapse collapse" aria-labelledby="headingThree" data-bs-parent="#promptAccordion">
+                <div class="accordion-body">
+                    In the <code>index.php</code> file, scan the <code>/langs/</code> directory to list the languages and generate the form using **Bootstrap**:
+                    <pre class="bg-light p-3">
+<form id="langForm" method="POST" action="langs.php">
+    <div class="row">
+        <!-- Replace with a loop to list languages -->
+        <div class="col-6 col-md-4 col-lg-2">
+            <div class="form-check">
+                <input class="form-check-input" type="checkbox" name="langs[]" value="en_US" id="en_US">
+                <label class="form-check-label" for="en_US">en_US</label>
+            </div>
+        </div>
+    </div>
+    <div class="text-center mt-3">
+        <button type="submit" class="btn btn-primary">Start</button>
+    </div>
+</form>
+                    </pre>
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 4 -->
+        <div class="accordion-item">
+            <h2 class="accordion-header" id="headingFour">
+                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseFour" aria-expanded="false" aria-controls="collapseFour">
+                    Step 4: Process Translations and Update the Database
+                </button>
+            </h2>
+            <div id="collapseFour" class="accordion-collapse collapse" aria-labelledby="headingFour" data-bs-parent="#promptAccordion">
+                <div class="accordion-body">
+                    In the <code>langs.php</code> file, process the selected languages:
+                    <ul>
+                        <li>Ensure that <code>en_US</code> is always first.</li>
+                        <li>Insert the languages into the <code>a_languages</code> table.</li>
+                        <li>Read the `.lang` files, ignoring headers and blank lines.</li>
+                    </ul>
+                    Database updates:
+                    <pre class="bg-light p-3">
+INSERT IGNORE INTO `a_lang_key_names` (`key_name`) SELECT DISTINCT BINARY `key_name` FROM `a_langs`;
+INSERT IGNORE INTO `a_modules` (`module`) SELECT DISTINCT `module` FROM `a_langs` WHERE `module` IS NOT NULL;
+
+UPDATE a_modules SET key_36 = LPAD(base10to36(id), 2, '0');
+UPDATE a_lang_key_names SET key_36 = LPAD(base10to36(id), 4, '0');
+
+UPDATE a_langs l
+JOIN a_modules m ON l.module = m.module
+SET l.module_id = m.id;
+
+UPDATE a_langs l
+JOIN a_lang_key_names kn ON l.key_name = kn.key_name
+SET l.key_name_id = kn.id;
+
+UPDATE a_langs l
+JOIN a_lang_key_names kn ON l.key_name_id = kn.id
+JOIN a_modules m ON l.module_id = m.id
+SET l.id36 = CONCAT(kn.key_36, m.key_36);
+                    </pre>
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 5 -->
+        <div class="accordion-item">
+            <h2 class="accordion-header" id="headingFive">
+                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseFive" aria-expanded="false" aria-controls="collapseFive">
+                    Step 5: Create and Manage Triggers
+                </button>
+            </h2>
+            <div id="collapseFive" class="accordion-collapse collapse" aria-labelledby="headingFive" data-bs-parent="#promptAccordion">
+                <div class="accordion-body">
+                    Check if triggers already exist before recreating them:
+                    <pre class="bg-light p-3">
+DROP TRIGGER IF EXISTS tr_a_lang_key_names_bi;
+DROP TRIGGER IF EXISTS tr_a_modules_bi;
+
+CREATE TRIGGER tr_a_lang_key_names_bi
+BEFORE INSERT ON a_lang_key_names
+FOR EACH ROW
+BEGIN
+    SET NEW.key_36 = base10to36(NEW.id);
+END;
+
+CREATE TRIGGER tr_a_modules_bi
+BEFORE INSERT ON a_modules
+FOR EACH ROW
+BEGIN
+    SET NEW.key_36 = base10to36(NEW.id);
+END;
+                    </pre>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
