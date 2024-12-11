@@ -149,6 +149,15 @@ $pdo->exec("UPDATE a_langs l
     JOIN a_modules m ON l.module_id = m.id
     SET l.id36 = CONCAT(kn.key_36, m.key_36)");
 
+echo "Create a_labels <br>\n";
+
+$pdo->exec("CREATE TABLE `a_labels` (
+  `id36` CHAR(6) NOT NULL,  `lang_code` INT NOT NULL,
+  `module_id` INT DEFAULT NULL,  `key_name_id` INT DEFAULT NULL,
+  `translation` TEXT NOT NULL,  PRIMARY KEY (`id36`, `lang_code`)) CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci");
+
+$pdo->exec("INSERT ignore INTO a_labels (id36, lang_code, module_id, key_name_id, translation) SELECT id36, lang_code, module_id, key_name_id, translation FROM a_langs;");
+
 echo "Language processing completed!<br>\n";
 echo "</pre>";
 flush();
